@@ -1,7 +1,27 @@
-diff --git a/configs/imx93_11x11_evk_defconfig b/configs/imx93_11x11_evk_defconfig
-index b4d6041c7d..11260fa9dc 100644
---- a/configs/imx93_11x11_evk_defconfig
-+++ b/configs/imx93_11x11_evk_defconfig
+diff --git a/board/advantech/imx93_rom2820a1/imx93_rom2820a1.c b/board/advantech/imx93_rom2820a1/imx93_rom2820a1.c
+index 8ac57bf34edbc4eec1f2d1806b15f2407957cdf0..7b3a2743d9bba92987ea199c9518c5e7b86f1257 100644
+--- a/board/advantech/imx93_rom2820a1/imx93_rom2820a1.c
++++ b/board/advantech/imx93_rom2820a1/imx93_rom2820a1.c
+@@ -20,6 +20,7 @@
+ #include <usb.h>
+ #include <dwc3-uboot.h>
+ #include <asm/gpio.h>
++#include <timestamp.h>
+
+ DECLARE_GLOBAL_DATA_PTR;
+
+@@ -332,6 +333,7 @@ int board_late_init(void)
+	env_set("board_name", "11X11_EVK");
+	env_set("board_rev", "iMX93");
+ #endif
++	env_set("u-boot_version", PLAIN_VERSION"("U_BOOT_DATE"-"U_BOOT_TIME")");
+	return 0;
+ }
+
+diff --git a/configs/imx93_rom2820a1_defconfig b/configs/imx93_rom2820a1_defconfig
+index 4b2e24fba8d6f7b50c36c861dbc5b4fe6c4e44ca..4a8a598d7c0ceb98f6d178224e05d56de4cde7b1 100755
+--- a/configs/imx93_rom2820a1_defconfig
++++ b/configs/imx93_rom2820a1_defconfig
 @@ -8,6 +8,8 @@ CONFIG_SPL_LIBGENERIC_SUPPORT=y
  CONFIG_NR_DRAM_BANKS=2
  CONFIG_ENV_SIZE=0x4000
@@ -10,7 +30,7 @@ index b4d6041c7d..11260fa9dc 100644
 +CONFIG_ENV_OFFSET_REDUND=0x704000
  CONFIG_ENV_SECT_SIZE=0x10000
  CONFIG_DM_GPIO=y
- CONFIG_DEFAULT_DEVICE_TREE="imx93-11x11-evk"
+ CONFIG_DEFAULT_DEVICE_TREE="imx93-rom2820-a1"
 @@ -18,6 +20,7 @@ CONFIG_SYS_PROMPT="u-boot=> "
  CONFIG_RTC_PCF2131=y
  CONFIG_SPL_SERIAL=y
@@ -28,3 +48,56 @@ index b4d6041c7d..11260fa9dc 100644
  CONFIG_SPLASH_SCREEN=y
  CONFIG_SPLASH_SCREEN_ALIGN=y
  CONFIG_CMD_BMP=y
+diff --git a/include/configs/imx93_rom2820.h b/include/configs/imx93_rom2820.h
+index 125b052b675b5a5d0f091326da383a47c53306bc..6e33b455d544e871949e670e9c66e70034184605 100644
+--- a/include/configs/imx93_rom2820.h
++++ b/include/configs/imx93_rom2820.h
+@@ -9,6 +9,7 @@
+ #include <linux/sizes.h>
+ #include <linux/stringify.h>
+ #include <asm/arch/imx-regs.h>
++#include <version.h>
+ #include "imx_env.h"
+
+ #define CONFIG_MANUFACTURE_INFO2EMMC /* Store manufacture info (mac, sn, ...) to eMMC bootpart */
+@@ -77,7 +78,8 @@
+	"mmcpart=1\0" \
+	"mmcroot=/dev/mmcblk1p2 rootwait rw\0" \
+	"mmcautodetect=yes\0" \
+-	"mmcargs=setenv bootargs ${jh_clk} ${mcore_clk} console=${console} root=${mmcroot}\0 " \
++	"mmcargs=setenv bootargs ${jh_clk} console=${console} root=${mmcroot} " \
++        "cur_slot=${bootslot} U-Boot_ver=${u-boot_version}\0"\
+	"loadbootscript=fatload mmc ${mmcdev}:${mmcpart} ${loadaddr} ${script};\0" \
+	"bootscript=echo Running bootscript from mmc ...; " \
+		"source\0" \
+@@ -134,7 +136,30 @@
+				"fi; " \
+			"fi;" \
+		"fi;\0" \
++	"bootslot=dualA\0" \
++	"u-boot_version=null\0" \
++	"usb_port=1\0" \
++	"post_opt=saveenv;\0" \
++	"adjustbootsource=if test ${bootslot} = dualA || test ${bootslot} = singlenormal; then run adjustbootsourceA; fi;" \
++        "if test ${bootslot} = dualB; then run adjustbootsourceB; fi\0" \
++	"altbootusb=echo Boot Fail! Get into usb fastboot download.;fastboot usb ${usb_port}\0" \
++	"altbootsingle=if test ${bootslot} = singlerescue; then run altbootusb; fi; if test ${bootslot} = singlenormal; then run swuboot; fi\0" \
++	"adjustbootsourceB=echo RootFs Slot B; setenv mmcpart 3; setenv mmcroot /dev/mmcblk${mmcdev}p4 rootwait rw\0" \
++	"adjustbootsourceA=echo RootFs Slot A; setenv mmcpart 1; setenv mmcroot /dev/mmcblk${mmcdev}p2 rootwait rw\0" \
++	"altbootRollbackB=echo Rolling back to slot dualB;setenv bootslot dualB;run post_opt;run bootcmd\0" \
++	"altbootRollbackA=echo Rolling back to slot dualA;setenv bootslot dualA;run post_opt;run bootcmd\0" \
++	"altbootdual=if test ${bootslot} = dualA ; then run altbootRollbackB; fi; if test ${bootslot} = dualB ; then run altbootRollbackA; fi;\0" \
++	"swuargs=setenv bootargs console=${console},${baudrate} earlycon=${earlycon},${baudrate} " \
++        "cur_slot=${bootslot} U-Boot_ver=${u-boot_version}\0"\
++	"loadswuimage=mmc read  ${loadaddr} 0x4000 0xF000\0" \
++	"loadswufdt=mmc read  ${fdt_addr} 0x13000 0x200\0" \
++	"loadswuramdisk=mmc read  ${initrd_addr} 0x15000 0x15000\0" \
++        "swuboot=echo swuboot ramdisk;run loadswuimage;run loadswufdt;run loadswuramdisk;run swuargs;booti ${loadaddr} ${initrd_addr} ${fdt_addr}\0" \
++        "altbootcmd=if test ${bootslot} = singlerescue ||  test ${bootslot} = singlenormal; then run altbootsingle; fi;" \
++	"if test ${bootslot} = dualA ||  test ${bootslot} = dualB; then run altbootdual; fi\0" \
+	"bsp_bootcmd=echo Running BSP bootcmd ...; " \
++	   "if test ${bootslot} = singlerescue;then run swuboot; fi;" \
++	   "run adjustbootsource;" \
+		"mmc dev ${mmcdev}; if mmc rescan; then " \
+		   "if run loadbootscript; then " \
+			   "run bootscript; " \

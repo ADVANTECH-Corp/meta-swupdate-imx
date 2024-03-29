@@ -1,14 +1,7 @@
 FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 
 FILES:${PN} += "/etc/*"
-SRC_URI += " file://0001-imx8mm-enable-env_redunand-bootcount-limit-lf-6.1.36-2.1.0.patch \
-             file://0002-imx8mm-default-env-lf-6.1.36-2.1.0.patch \
-             file://0003-imx8qxp-enable-env_redunand-bootcount-limit-lf-6.1.36-2.1.0.patch \
-             file://0004-imx8qxp-default-env-lf-6.1.36-2.1.0.patch \
-             file://0005-imx93-enable-env_redunand-bootcount-limit-lf-6.1.36-2.1.0.patch \
-             file://0006-imx93-default-env-lf-6.1.36-2.1.0.patch \
-             file://0007-imx6ull-enable-env_redunand-bootcount-limit-lf-6.1.36-2.1.0.patch \
-             file://0008-imx6ull-default-env-lf-6.1.36-2.1.0.patch"
+SRC_URI += " file://0005-imx93-enable-env_redunand-bootcount-limit-lf-6.1.36-2.1.0.patch "
 
 SWU_HW_REV ?= "1.0"
 
